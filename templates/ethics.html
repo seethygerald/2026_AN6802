@@ -1,0 +1,20 @@
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h2> Ethical Test </h2>
+        <p>A manager can disclose confidential employee information to unauthorized personnel.</p>
+        <form action='/wrong' method='post'>
+            <input type = 'submit' value = 'True'>
+        </form>
+        <form action='/correct' method='post'>
+            <input type = 'submit' value = 'False'>
+        </form>
+        <form action='/main' method='post'>
+            <input type = 'submit' value = 'Main'>
+        </form>
+    </div>
+</body>
