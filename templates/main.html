@@ -1,0 +1,28 @@
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h2>Main</h2>
+        <form action="/ethics" method="post">
+            <input type = "submit" value = "Ethical Test">
+        </form>
+        <form action="/econ" method="post">
+            <input type = "submit" value = "Food Expenditure Prediction">
+        </form>
+        <form action="/chatbot" method="post">
+            <input type = "submit" value = "Financial Analysis Chatbot">
+        </form>
+        <form action="/equity" method="post">
+            <input type = "submit" value = "Google Share Enquiry">
+        </form>
+        <form action="/apple" method="post">
+            <input type = "submit" value = "Apple Inc Enquiry">
+        </form>
+        <form action="/" method="post">
+            <input type = "submit" value = "Exit">
+        </form>
+    </div>
+</body>

@@ -1,0 +1,18 @@
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <button onclick="googleEnquiry()">Google Share Enquiry</button>
+        <script>
+            function googleEnquiry(){
+                window.open("https://1d428f319f02a3706c.gradio.live/","_blank");
+            }
+        </script>
+        <form action="/main" method="post">
+            <input type = "submit" value = "Main">
+        </form>
+    </div>
+</body>
