@@ -8,8 +8,6 @@ load_dotenv()
 
 # api_key = os.getenv("GROQ_API_KEY")
 
-
-
 model = joblib.load("foodexp.pkl")
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
