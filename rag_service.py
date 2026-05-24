@@ -2,6 +2,9 @@ import os
 from functools import lru_cache
 from requests.exceptions import RequestException
 
+from dotenv import load_dotenv
+from requests.exceptions import RequestException
+
 import requests
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -44,15 +47,17 @@ Question: {question}
         )
         self.output_parser = StrOutputParser()
 
-    def _embed_query_hf_api(self, query: str) -> list[float]:
-        url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{self.hf_embed_model}"
-        headers = {
-            "Authorization": f"Bearer {self.hf_api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {"inputs": query, "options": {"wait_for_model": True}}
+    def _embed_query_external(self, query: str) -> list[float]:
+        headers = {"Content-Type": "application/json"}
+        if self.external_embed_token:
+            headers["Authorization"] = f"Bearer {self.external_embed_token}"
 
-        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp = requests.post(
+            self.external_embed_url,
+            headers=headers,
+            json={"text": query},
+            timeout=60,
+        )
         resp.raise_for_status()
         data = resp.json()
 

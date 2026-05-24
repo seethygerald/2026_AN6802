@@ -1,8 +1,11 @@
 from flask import Flask, jsonify, render_template, request
 import joblib
 import os
+from dotenv import load_dotenv
 from groq import Groq
 from rag_service import get_equity_rag_service
+
+load_dotenv()
 
 # api_key = os.getenv("GROQ_API_KEY")
 
