@@ -6,7 +6,8 @@ groq
 langchain
 langchain-community
 langchain-huggingface
-langchain-chroma
 langchain-google-genai
+langchain-qdrant
+qdrant-client
 sentence-transformers
 unstructured[pdf]

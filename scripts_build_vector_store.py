@@ -1,16 +1,16 @@
-"""Build a persistent Chroma DB from files in ./data."""
+"""Build a Qdrant collection from files in ./data."""
 
+import os
 from pathlib import Path
 
-from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
 DATA_DIR = Path("./data")
-PERSIST_DIR = "./chroma_db"
-COLLECTION_NAME = "demo_collection"
+COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "demo_collection")
 
 
 def _load_pdf_documents(pdf_path: Path) -> list[Document]:
@@ -60,6 +60,12 @@ def load_documents() -> list[Document]:
 
 
 def main() -> None:
+    qdrant_url = os.getenv("QDRANT_URL")
+    if not qdrant_url:
+        raise RuntimeError("Missing QDRANT_URL environment variable.")
+
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")
+
     documents = load_documents()
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     docs = splitter.split_documents(documents)
@@ -68,16 +74,18 @@ def main() -> None:
         raise RuntimeError("Document split produced zero chunks; cannot build vector store.")
 
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vector_store = Chroma.from_documents(
+    vector_store = QdrantVectorStore.from_documents(
         documents=docs,
-        collection_name=COLLECTION_NAME,
         embedding=embeddings,
-        persist_directory=PERSIST_DIR,
+        url=qdrant_url,
+        api_key=qdrant_api_key,
+        collection_name=COLLECTION_NAME,
     )
 
     print(f"Loaded {len(documents)} documents")
     print(f"Split into {len(docs)} chunks")
-    print(f"Stored {vector_store._collection.count()} chunks in {PERSIST_DIR}")
+    print(f"Stored collection '{COLLECTION_NAME}' in Qdrant at {qdrant_url}")
+    print(f"Retriever ready: {vector_store is not None}")
 
 
 if __name__ == "__main__":
