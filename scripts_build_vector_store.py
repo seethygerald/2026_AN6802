@@ -1,6 +1,7 @@
 """Build a Qdrant collection from files in ./data."""
 
 import os
+import uuid
 from pathlib import Path
 
 from langchain_core.documents import Document
@@ -58,6 +59,11 @@ def load_documents() -> list[Document]:
 
     return documents
 
+def _chunk_id(doc: Document) -> str:
+    source = doc.metadata.get("source", "")
+    page = doc.metadata.get("page", "")
+    payload = f"{source}|{page}|{doc.page_content}"
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, payload))
 
 def main() -> None:
     qdrant_url = os.getenv("QDRANT_URL")
@@ -73,6 +79,8 @@ def main() -> None:
     if not docs:
         raise RuntimeError("Document split produced zero chunks; cannot build vector store.")
 
+    ids = [_chunk_id(d) for d in docs]
+
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     vector_store = QdrantVectorStore.from_documents(
         documents=docs,
@@ -80,6 +88,7 @@ def main() -> None:
         url=qdrant_url,
         api_key=qdrant_api_key,
         collection_name=COLLECTION_NAME,
+        ids=ids,
     )
 
     print(f"Loaded {len(documents)} documents")
