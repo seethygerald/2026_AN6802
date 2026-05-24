@@ -8,3 +8,4 @@ langchain-community
 langchain-qdrant
 qdrant-client
 requests
+langchain-google-genai
