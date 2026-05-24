@@ -1,1 +1,1 @@
-## Move from local Chroma to hosted Qdrant (Render 512MB-friendly)
+
