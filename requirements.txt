@@ -9,3 +9,5 @@ langchain-qdrant
 qdrant-client
 requests
 langchain-google-genai
+langchain-huggingface
+sentence-transformers
