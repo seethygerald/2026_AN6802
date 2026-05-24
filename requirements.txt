@@ -3,3 +3,13 @@ gunicorn
 scikit-learn
 joblib
 groq
+langchain
+langchain-community
+langchain-huggingface
+langchain-chroma
+langchain-google-genai
+sentence-transformers
+unstructured[pdf]
+pypdf
+qdrant-client
+langchain-qdrant
