@@ -9,4 +9,4 @@ langchain-huggingface
 langchain-chroma
 langchain-google-genai
 sentence-transformers
-unstructured
+unstructured[pdf]
