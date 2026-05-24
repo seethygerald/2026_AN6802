@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+from requests.exceptions import RequestException
 
 import requests
 from langchain_core.output_parsers import StrOutputParser
