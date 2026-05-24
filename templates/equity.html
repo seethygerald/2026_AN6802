@@ -45,14 +45,25 @@
                     body: JSON.stringify({q})
                 });
 
-                const data = await response.json();
+                let data = {};
+                const contentType = response.headers.get("content-type") || "";
+                if (contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    data = { error: text || "Request failed" };
+                }
+
                 if (!response.ok) {
                     document.getElementById("error").textContent = data.error || "Request failed";
                     return;
                 }
 
-                document.getElementById("rag-answer").textContent = data.rag_answer;
-                document.getElementById("llm-answer").textContent = data.llm_answer;
+                document.getElementById("rag-answer").textContent = data.rag_answer || "-";
+                document.getElementById("llm-answer").textContent = data.llm_answer || "-";
+                if (data.warning) {
+                    statusEl.textContent = "Warning: retrieval unavailable, showing degraded response.";
+                }
             } catch (err) {
                 document.getElementById("error").textContent = "Network error. Please try again.";
             } finally {
