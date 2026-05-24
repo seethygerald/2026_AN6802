@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 import joblib
 import os
 from groq import Groq
+from rag_service import get_equity_rag_service
 
 # api_key = os.getenv("GROQ_API_KEY")
 
@@ -73,6 +74,20 @@ def groqReply():
 @app.route("/equity",methods=["get","post"])
 def equity():
     return(render_template("equity.html"))
+
+@app.route("/equity/query", methods=["POST"])
+def equity_query():
+    payload = request.get_json(silent=True) or {}
+    q = (payload.get("q") or request.form.get("q") or "").strip()
+
+    if not q:
+        return jsonify({"error": "Question is required."}), 400
+
+    try:
+        service = get_equity_rag_service()
+        return jsonify(service.ask(q))
+    except Exception as e:
+        return jsonify({"error": f"Unable to answer right now: {e}"}), 500
 
 @app.route("/apple",methods=["get","post"])
 def apple():
