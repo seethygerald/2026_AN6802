@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+from requests.exceptions import RequestException
 
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
@@ -9,8 +10,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from qdrant_client import QdrantClient
-
-load_dotenv()
 
 
 class EquityRAGService:
@@ -27,12 +26,12 @@ class EquityRAGService:
         self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "demo_collection")
 
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", "hf_api").strip().lower()
+        self.hf_api_key = os.getenv("HF_API_KEY")
+        self.hf_embed_model = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
         self.local_embed_model = os.getenv("LOCAL_EMBED_MODEL", "all-MiniLM-L6-v2")
-        self.external_embed_url = os.getenv("EMBEDDING_ENDPOINT_URL", "").strip()
-        self.external_embed_token = os.getenv("EMBEDDING_ENDPOINT_TOKEN", "").strip()
 
-        if self.embedding_provider == "external" and not self.external_embed_url:
-            raise RuntimeError("Missing EMBEDDING_ENDPOINT_URL for EMBEDDING_PROVIDER=external.")
+        if self.embedding_provider == "hf_api" and not self.hf_api_key:
+            raise RuntimeError("Missing HF_API_KEY environment variable for EMBEDDING_PROVIDER=hf_api.")
 
         self._local_embeddings = None
 
@@ -62,11 +61,9 @@ Question: {question}
         resp.raise_for_status()
         data = resp.json()
 
-        embedding = data.get("embedding") if isinstance(data, dict) else None
-        if not isinstance(embedding, list) or not embedding:
-            raise RuntimeError("External embedding endpoint returned an invalid response payload.")
-
-        return embedding
+        if isinstance(data, list) and data and isinstance(data[0], list):
+            return data[0]
+        return data
 
     def _embed_query_local(self, query: str) -> list[float]:
         if self._local_embeddings is None:
@@ -74,9 +71,8 @@ Question: {question}
                 from langchain_huggingface import HuggingFaceEmbeddings
             except ImportError as exc:
                 raise RuntimeError(
-                    "Local embeddings are enabled but optional local-embedding dependencies are missing. "
-                    "Install requirements_for_ingestion.txt for dev/testing, or use EMBEDDING_PROVIDER=hf_api "
-                    "for low-memory production environments like Render."
+                    "Local embeddings are enabled but langchain-huggingface is not installed. "
+                    "Install requirements_for_ingestion.txt or switch EMBEDDING_PROVIDER=hf_api."
                 ) from exc
 
             self._local_embeddings = HuggingFaceEmbeddings(model_name=self.local_embed_model)
@@ -84,18 +80,14 @@ Question: {question}
         return self._local_embeddings.embed_query(query)
 
     def _embed_query(self, query: str) -> list[float]:
+        if self.embedding_provider == "hf_api":
+            return self._embed_query_hf_api(query)
         if self.embedding_provider == "local":
             return self._embed_query_local(query)
-        if self.embedding_provider == "external":
-            try:
-                return self._embed_query_external(query)
-            except RequestException as exc:
-                raise RuntimeError(
-                    "External embedding endpoint request failed. "
-                    "For offline Codespaces testing, set EMBEDDING_PROVIDER=local and install "
-                    "requirements_for_ingestion.txt."
-                ) from exc
-        raise RuntimeError("Unsupported EMBEDDING_PROVIDER. Use 'external' or 'local'.")
+        raise RuntimeError("Unsupported EMBEDDING_PROVIDER. Use 'hf_api' or 'local'.")
+
+    def _retrieve_context(self, query: str, k: int = 10) -> str:
+        query_vector = self._embed_query(query)
 
     def _retrieve_context(self, query: str, k: int = 10) -> str:
         query_vector = self._embed_query(query)
@@ -139,19 +131,12 @@ Question: {question}
                 "without vector search context."
             )
 
-        try:
-            llm_answer = self.llm.invoke(query).content
-            llm_error = None
-        except Exception as exc:
-            llm_answer = "LLM response is temporarily unavailable. Please try again shortly."
-            llm_error = str(exc)
-
+        llm_answer = self.llm.invoke(query).content
         response = {"rag_answer": rag_answer, "llm_answer": llm_answer}
         if retrieval_error:
             response["warning"] = retrieval_error
-        if llm_error:
-            response["llm_warning"] = llm_error
         return response
+
 
 
 @lru_cache(maxsize=1)
