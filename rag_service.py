@@ -84,12 +84,24 @@ Question: {question}
     def _retrieve_context(self, query: str, k: int = 10) -> str:
         query_vector = self._embed_query(query)
 
-        hits = self.qdrant_client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector,
-            limit=k,
-            with_payload=True,
-        )
+    def _retrieve_context(self, query: str, k: int = 10) -> str:
+        query_vector = self._embed_query(query)
+
+        if hasattr(self.qdrant_client, "search"):
+            hits = self.qdrant_client.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector,
+                limit=k,
+                with_payload=True,
+            )
+        else:
+            response = self.qdrant_client.query_points(
+                collection_name=self.collection_name,
+                query=query_vector,
+                limit=k,
+                with_payload=True,
+            )
+            hits = response.points
 
         parts = []
         for hit in hits:
