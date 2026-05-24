@@ -5,14 +5,60 @@
 
 <body>
     <div class="container">
-        <button onclick="googleEnquiry()">Google Share Enquiry</button>
-        <script>
-            function googleEnquiry(){
-                window.open("https://1d428f319f02a3706c.gradio.live/","_blank");
-            }
-        </script>
+        <h2>Equity Q&A (No temporary Gradio link needed)</h2>
+        <form id="equity-form">
+            <input id="q" name="q" type="text" placeholder="Ask a question" required>
+            <input id="ask-btn" type="submit" value="Ask">
+        </form>
+
+        <h3>RAG Answer</h3>
+        <p id="rag-answer">-</p>
+
+        <h3>LLM-only Answer</h3>
+        <p id="llm-answer">-</p>
+
+        <p id="status"></p>
+        <p id="error" style="color:red;"></p>
+
         <form action="/main" method="post">
-            <input type = "submit" value = "Main">
+            <input type="submit" value="Main">
         </form>
     </div>
+
+    <script>
+        const form = document.getElementById("equity-form");
+        const askBtn = document.getElementById("ask-btn");
+        const statusEl = document.getElementById("status");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            document.getElementById("error").textContent = "";
+            statusEl.textContent = "Thinking...";
+            askBtn.disabled = true;
+
+            const q = document.getElementById("q").value;
+
+            try {
+                const response = await fetch("/equity/query", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({q})
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    document.getElementById("error").textContent = data.error || "Request failed";
+                    return;
+                }
+
+                document.getElementById("rag-answer").textContent = data.rag_answer;
+                document.getElementById("llm-answer").textContent = data.llm_answer;
+            } catch (err) {
+                document.getElementById("error").textContent = "Network error. Please try again.";
+            } finally {
+                statusEl.textContent = "";
+                askBtn.disabled = false;
+            }
+        });
+    </script>
 </body>
