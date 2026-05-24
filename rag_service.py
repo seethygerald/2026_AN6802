@@ -113,11 +113,25 @@ Question: {question}
         return "\n\n".join(parts)
 
     def ask(self, query: str) -> dict:
-        context = self._retrieve_context(query, k=10)
-        prompt_value = self.prompt.invoke({"context": context, "question": query})
-        rag_answer = self.output_parser.invoke(self.llm.invoke(prompt_value))
+        try:
+            context = self._retrieve_context(query, k=10)
+            prompt_value = self.prompt.invoke({"context": context, "question": query})
+            rag_answer = self.output_parser.invoke(self.llm.invoke(prompt_value))
+            retrieval_error = None
+        except Exception as exc:
+            context = ""
+            retrieval_error = str(exc)
+            rag_answer = (
+                "RAG context retrieval is temporarily unavailable, so this answer is generated "
+                "without vector search context."
+            )
+
         llm_answer = self.llm.invoke(query).content
-        return {"rag_answer": rag_answer, "llm_answer": llm_answer}
+        response = {"rag_answer": rag_answer, "llm_answer": llm_answer}
+        if retrieval_error:
+            response["warning"] = retrieval_error
+        return response
+
 
 
 @lru_cache(maxsize=1)
