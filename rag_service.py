@@ -26,12 +26,6 @@ class EquityRAGService:
         self.hf_api_key = os.getenv("HF_API_KEY")
         self.hf_embed_model = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
         self.local_embed_model = os.getenv("LOCAL_EMBED_MODEL", "all-MiniLM-L6-v2")
-        self.hf_fallback_to_local = os.getenv("HF_FALLBACK_TO_LOCAL", "false").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
 
         if self.embedding_provider == "hf_api" and not self.hf_api_key:
             raise RuntimeError("Missing HF_API_KEY environment variable for EMBEDDING_PROVIDER=hf_api.")
@@ -82,21 +76,13 @@ Question: {question}
 
     def _embed_query(self, query: str) -> list[float]:
         if self.embedding_provider == "hf_api":
-            try:
-                return self._embed_query_hf_api(query)
-            except RequestException as exc:
-                if self.hf_fallback_to_local:
-                    return self._embed_query_local(query)
-
-                raise RuntimeError(
-                    "Hugging Face API embedding request failed. "
-                    "If DNS/network is blocked in this environment, set EMBEDDING_PROVIDER=local "
-                    "for Codespaces testing, or enable HF_FALLBACK_TO_LOCAL=true if local embedding "
-                    "dependencies are installed."
-                ) from exc
+            return self._embed_query_hf_api(query)
         if self.embedding_provider == "local":
             return self._embed_query_local(query)
         raise RuntimeError("Unsupported EMBEDDING_PROVIDER. Use 'hf_api' or 'local'.")
+
+    def _retrieve_context(self, query: str, k: int = 10) -> str:
+        query_vector = self._embed_query(query)
 
     def _retrieve_context(self, query: str, k: int = 10) -> str:
         query_vector = self._embed_query(query)
