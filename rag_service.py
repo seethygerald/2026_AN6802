@@ -1,9 +1,5 @@
 import os
 from functools import lru_cache
-from requests.exceptions import RequestException
-
-from dotenv import load_dotenv
-from requests.exceptions import RequestException
 
 import requests
 from langchain_core.output_parsers import StrOutputParser
@@ -25,13 +21,15 @@ class EquityRAGService:
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
         self.collection_name = collection_name or os.getenv("QDRANT_COLLECTION", "demo_collection")
 
-        self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", "hf_api").strip().lower()
-        self.hf_api_key = os.getenv("HF_API_KEY")
-        self.hf_embed_model = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", "external").strip().lower()
+        self.external_embed_url = os.getenv("EMBEDDING_ENDPOINT_URL", "").strip()
+        self.external_embed_token = os.getenv("EMBEDDING_ENDPOINT_TOKEN", "").strip()
         self.local_embed_model = os.getenv("LOCAL_EMBED_MODEL", "all-MiniLM-L6-v2")
 
-        if self.embedding_provider == "hf_api" and not self.hf_api_key:
-            raise RuntimeError("Missing HF_API_KEY environment variable for EMBEDDING_PROVIDER=hf_api.")
+        if self.embedding_provider == "external" and not self.external_embed_url:
+            raise RuntimeError(
+                "Missing EMBEDDING_ENDPOINT_URL for EMBEDDING_PROVIDER=external."
+            )
 
         self._local_embeddings = None
 
@@ -61,9 +59,14 @@ Question: {question}
         resp.raise_for_status()
         data = resp.json()
 
+        if isinstance(data, dict) and isinstance(data.get("embedding"), list):
+            return data["embedding"]
         if isinstance(data, list) and data and isinstance(data[0], list):
             return data[0]
-        return data
+        if isinstance(data, list):
+            return data
+
+        raise RuntimeError("Unexpected embedding response format from external endpoint.")
 
     def _embed_query_local(self, query: str) -> list[float]:
         if self._local_embeddings is None:
@@ -72,7 +75,7 @@ Question: {question}
             except ImportError as exc:
                 raise RuntimeError(
                     "Local embeddings are enabled but langchain-huggingface is not installed. "
-                    "Install requirements_for_ingestion.txt or switch EMBEDDING_PROVIDER=hf_api."
+                    "Install requirements_for_ingestion.txt or switch EMBEDDING_PROVIDER=external."
                 ) from exc
 
             self._local_embeddings = HuggingFaceEmbeddings(model_name=self.local_embed_model)
@@ -80,14 +83,11 @@ Question: {question}
         return self._local_embeddings.embed_query(query)
 
     def _embed_query(self, query: str) -> list[float]:
-        if self.embedding_provider == "hf_api":
-            return self._embed_query_hf_api(query)
+        if self.embedding_provider == "external":
+            return self._embed_query_external(query)
         if self.embedding_provider == "local":
             return self._embed_query_local(query)
-        raise RuntimeError("Unsupported EMBEDDING_PROVIDER. Use 'hf_api' or 'local'.")
-
-    def _retrieve_context(self, query: str, k: int = 10) -> str:
-        query_vector = self._embed_query(query)
+        raise RuntimeError("Unsupported EMBEDDING_PROVIDER. Use 'external' or 'local'.")
 
     def _retrieve_context(self, query: str, k: int = 10) -> str:
         query_vector = self._embed_query(query)
@@ -124,7 +124,6 @@ Question: {question}
             rag_answer = self.output_parser.invoke(self.llm.invoke(prompt_value))
             retrieval_error = None
         except Exception as exc:
-            context = ""
             retrieval_error = str(exc)
             rag_answer = (
                 "RAG context retrieval is temporarily unavailable, so this answer is generated "
@@ -137,6 +136,14 @@ Question: {question}
             response["warning"] = retrieval_error
         return response
 
+    def runtime_status(self) -> dict:
+        return {
+            "embedding_provider": self.embedding_provider,
+            "external_endpoint_configured": bool(self.external_embed_url),
+            "external_token_configured": bool(self.external_embed_token),
+            "local_model": self.local_embed_model if self.embedding_provider == "local" else None,
+            "collection": self.collection_name,
+        }
 
 
 @lru_cache(maxsize=1)

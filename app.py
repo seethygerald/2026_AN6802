@@ -78,6 +78,14 @@ def groqReply():
 def equity():
     return(render_template("equity.html"))
 
+@app.route("/equity/status", methods=["GET"])
+def equity_status():
+    try:
+        service = get_equity_rag_service()
+        return jsonify(service.runtime_status())
+    except Exception as e:
+        return jsonify({"error": f"Unable to load equity service: {e}"}), 500
+
 @app.route("/equity/query", methods=["POST"])
 def equity_query():
     payload = request.get_json(silent=True) or {}
